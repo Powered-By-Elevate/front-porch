@@ -5,7 +5,7 @@ export type OpenConnection = { id: string; other_hash: string; ends_at: string }
 const CODES = [
   'light_cap', 'underage', 'no_phone_identity', 'no_profile', 'self_light', 'blocked_target',
   'no_connection', 'bad_windows', 'bad_slot', 'slot_outside_overlap',
-  'plan_confirmed', 'own_proposal', 'no_proposal', 'no_availability',
+  'plan_confirmed', 'own_proposal', 'no_proposal', 'no_availability', 'bad_token',
 ];
 
 export async function rpc(fn: string, args?: Record<string, unknown>): Promise<unknown> {
@@ -25,6 +25,10 @@ export const unsetLight = (hash: string) => rpc('unset_light', { p_target_hash: 
 export const setHideMe = (hide: boolean) => rpc('set_hide_me', { p_hide: hide });
 export const blockHash = (hash: string) => rpc('block_hash', { p_hash: hash });
 export const purgeMe = () => rpc('purge_me');
+export const registerPushToken = (token: string) =>
+  rpc('register_push_token', { p_token: token });
+export const unregisterPushToken = (token: string) =>
+  rpc('unregister_push_token', { p_token: token });
 
 export async function myLights(): Promise<string[]> {
   const { data, error } = await sb().from('lights').select('target_hash');

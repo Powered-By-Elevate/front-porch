@@ -43,40 +43,66 @@ Supabase project does not exist yet. What is real:
   hours. Smoke: `supabase/tests/plans_smoke.sql`, ALL PLANS CHECKS
   PASSED.
 
+- **Push delivery** (built 2026-09-10, the second stub to land):
+  migration 0003 plus `supabase/functions/push-drain/`. The outbox from
+  0001 gains claim semantics (a claim older than five minutes is
+  presumed crashed and becomes claimable again, so a transient APNs
+  failure needs no bookkeeping at all), devices land in a token registry
+  whose only doors are RPCs (a token must be able to change hands, and
+  tokens die with the profile), and pg_cron fires the drain every minute
+  through pg_net, a no-op until the function's URL and secret land in
+  `app_config`. The drain signs its own ES256 APNs JWTs (WebCrypto, no
+  dependency), sends HTTP/2 alerts, drops tokens Apple reports gone, and
+  marks rows sent or dead with the reason so nothing loops. Pushes stay
+  nameless by architecture: the server never knows names, so the name
+  renders in-app. Smokes: `supabase/tests/push_smoke.sql` (ALL PUSH
+  CHECKS PASSED) and the runtime-neutral APNs core proven under Node
+  (JWT verified against the public key, tamper refused, full response
+  classifier table). At native-wrap time fill `src/lib/push.ts` with
+  `@capacitor/push-notifications`: App.tsx already registers whatever
+  token it returns.
+
 Deliberately stubbed, in order of build priority:
 
-1. **Push delivery**: the tick enqueues into `push_queue`. A scheduled
-   edge function draining it to APNs still needs writing, plus the
-   Capacitor push registration handshake. Pushes are nameless by
-   architecture: the server never knows names, so the name renders in-app.
-2. **Device contacts import** (`src/lib/contacts.ts`): install
+1. **Device contacts import** (`src/lib/contacts.ts`): install
    `@capacitor-community/contacts` at native-wrap time. Manual add works
    today and stays as the permission-denied fallback.
-3. **Device calendar pre-fill** (`src/lib/calendar.ts`): a calendar
+2. **Device calendar pre-fill** (`src/lib/calendar.ts`): a calendar
    plugin (EventKit underneath) at native-wrap time, so the Make Plans
    grid starts pre-filled from real free/busy. The hand-filled grid
    works today and stays as the permission-denied fallback. Same moment:
    route add-to-calendar through the share sheet, WKWebView has no
    downloads.
-4. **Delete-account edge function** removing the auth user itself, on the
+3. **Delete-account edge function** removing the auth user itself, on the
    Sunday's Supper pattern (App Review 5.1.1(v) requires it).
 
 ## Runbook: from scaffold to phone
 
 1. **Supabase project** (supabase.com, free tier): create it, then in the
    SQL editor run the files in `supabase/migrations/` in order (0001,
-   then 0002). Enable the `pg_cron` extension first if the create line
-   complains.
+   0002, 0003). Enable the `pg_cron` and `pg_net` extensions first if a
+   create line complains.
 2. **Phone auth needs an SMS provider.** Supabase Auth → Providers →
    Phone: wire Twilio (or MessageBird). Real cost, roughly five cents per
    verification text. Without this step sign-in cannot work at all.
 3. **Env**: copy `.env.example` to `.env`, fill the project URL and anon
    key. Then `npm install` and `npm run dev` gives the whole flow in a
    browser.
-4. **Native wrap** (Mac): `npx cap add ios`, then
+4. **Push drain** (can wait, the minute tick no-ops until this lands):
+   with the Supabase CLI linked to the project, run
+   `supabase functions deploy push-drain --no-verify-jwt`, then
+   `supabase secrets set` DRAIN_SECRET (any long random string),
+   APNS_TEAM_ID, APNS_KEY_ID, APNS_KEY_P8 (the whole .p8 PEM text),
+   APNS_ENV (`sandbox` for TestFlight dev builds, `production` for App
+   Store builds). APNS_TOPIC defaults to the bundle id. The .p8 comes
+   from developer.apple.com under Certificates → Keys, APNs enabled.
+   Finish in the SQL editor: insert `app_config` rows `push_drain_url`
+   (the function's invoke URL) and `push_drain_secret` (the same
+   DRAIN_SECRET value).
+5. **Native wrap** (Mac): `npx cap add ios`, then
    `npm run build && npx cap sync ios`, open in Xcode once to set the
    team. Add the contacts plugin here.
-5. **Codemagic**: add the repo, create the ASC integration named
+6. **Codemagic**: add the repo, create the ASC integration named
    `front-porch-asc`, add `CERTIFICATE_PRIVATE_KEY` to the
    `appstore_credentials` group, fill the two `VITE_` vars in
    `codemagic.yaml`. The workflow registers the bundle id and creates

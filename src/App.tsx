@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
+import { registerPushToken } from './lib/engine';
+import { devicePushToken } from './lib/push';
 import { configured, sb } from './lib/supabase';
 import { usePorch } from './store';
 import { Welcome } from './pages/Welcome';
@@ -33,6 +35,15 @@ export default function App() {
         setCheckedProfile(true);
       });
   }, [session, setProfileReady]);
+
+  // Register the device for the nameless reveal push. A stub until the
+  // native wrap (push.ts), so this quietly no-ops on the web.
+  useEffect(() => {
+    if (!session || !profileReady || !configured()) return;
+    void devicePushToken().then((token) => {
+      if (token) void registerPushToken(token).catch(() => undefined);
+    });
+  }, [session, profileReady]);
 
   if (loading || !checkedProfile) return null;
   if (!session) return <Welcome />;
