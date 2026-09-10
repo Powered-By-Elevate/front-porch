@@ -43,7 +43,11 @@ export function Settings() {
 
   const deleteAccount = async () => {
     try {
-      await purgeMe();
+      // The edge function purges AND removes the auth user (App Review
+      // 5.1.1(v)). Before it is deployed, fall back to the purge alone
+      // so the web dev flow still works end to end.
+      const { error } = await sb().functions.invoke('delete-account');
+      if (error) await purgeMe();
       await supabase?.auth.signOut();
     } catch {
       setMsg('Delete did not finish. Try again.');

@@ -61,8 +61,17 @@ Supabase project does not exist yet. What is real:
   classifier table). At native-wrap time fill `src/lib/push.ts` with
   `@capacitor/push-notifications`: App.tsx already registers whatever
   token it returns.
+- **Delete-account edge function** (built 2026-09-10, the third stub):
+  `supabase/functions/delete-account/`, the Sunday's Supper pattern App
+  Review 5.1.1(v) requires. Purges as the caller (so the scrub runs
+  exactly as the in-app door does, including lights pointing AT the
+  user, which no cascade could reach: target_hash is a hash, not a
+  foreign key), then removes the auth user itself with the service
+  role. Settings invokes it and falls back to the bare purge until the
+  function is deployed, so the web dev flow keeps working.
 
-Deliberately stubbed, in order of build priority:
+Deliberately stubbed, in order of build priority (both native-wrap
+items, nothing left to build before the Supabase project exists):
 
 1. **Device contacts import** (`src/lib/contacts.ts`): install
    `@capacitor-community/contacts` at native-wrap time. Manual add works
@@ -73,8 +82,6 @@ Deliberately stubbed, in order of build priority:
    works today and stays as the permission-denied fallback. Same moment:
    route add-to-calendar through the share sheet, WKWebView has no
    downloads.
-3. **Delete-account edge function** removing the auth user itself, on the
-   Sunday's Supper pattern (App Review 5.1.1(v) requires it).
 
 ## Runbook: from scaffold to phone
 
@@ -98,7 +105,9 @@ Deliberately stubbed, in order of build priority:
    from developer.apple.com under Certificates → Keys, APNs enabled.
    Finish in the SQL editor: insert `app_config` rows `push_drain_url`
    (the function's invoke URL) and `push_drain_secret` (the same
-   DRAIN_SECRET value).
+   DRAIN_SECRET value). While the CLI is linked, also run
+   `supabase functions deploy delete-account` (JWT verification stays
+   on, no secrets needed).
 5. **Native wrap** (Mac): `npx cap add ios`, then
    `npm run build && npx cap sync ios`, open in Xcode once to set the
    team. Add the contacts plugin here.
