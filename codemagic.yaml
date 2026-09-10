@@ -1,0 +1,57 @@
+# Codemagic CI for Front Porch, mirroring the Sunday's Supper workflow.
+# Blocked until two Matt-side steps exist (README §Runbook): the Supabase
+# project (fills the VITE_ vars below) and the ASC integration named
+# front-porch-asc in the Codemagic UI. The bundle id is the rename-proof
+# com.poweredbyelevate.both on purpose (see capacitor.config.ts).
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: front-porch-asc
+    environment:
+      node: 22
+      xcode: latest
+      groups:
+        - appstore_credentials
+      vars:
+        BUNDLE_ID: com.poweredbyelevate.both
+        XCODE_SCHEME: App
+        VITE_SUPABASE_URL: TODO_FILL_AFTER_SUPABASE_PROJECT_EXISTS
+        VITE_SUPABASE_ANON_KEY: TODO_FILL_AFTER_SUPABASE_PROJECT_EXISTS
+    scripts:
+      - name: Install deps + build web
+        script: |
+          npm ci
+          npm run build
+      - name: Capacitor sync
+        script: npx cap sync ios
+      - name: Fetch signing files
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --create
+      - name: Set up keychain
+        script: |
+          keychain initialize
+          keychain add-certificates
+      - name: Set up signing
+        script: |
+          xcode-project use-profiles
+      - name: Bump build number
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project ios/App/App.xcodeproj \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Dev Team
