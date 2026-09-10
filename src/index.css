@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The WKWebView's own scroller is off (capacitor.config.ts), so the app
+   scrolls inside #root. Safe areas are ours to own in CSS. */
+#root {
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+body {
+  @apply bg-dusk-800 text-cream;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+input,
+select,
+button {
+  /* 16px floor: anything smaller triggers the iOS focus auto-zoom that
+     reads as "the app is zoomed" (the Sunday's Supper sweep's top find). */
+  font-size: 16px;
+}
